@@ -28,7 +28,7 @@ endif
 
 ifeq ($(ARB_PUF),yes)
 SRC += arbpuf/arbiter.v arbpuf/mux2x1.v arbpuf/puf.v arbpuf/switch.v
-DEFINES += -DUSE_ARB_PUF
+VERILOG_DEFINES += USE_ARB_PUF
 endif
 
 NEORV32_APPLICATION = fpga_puf/sw/neorv32_application_image.vhd
@@ -81,7 +81,7 @@ $(BUILD_DIR)/build.ys $(BUILD_DIR)/$(PROJECT_NAME).json $(BUILD_DIR)/$(PROJECT_N
 	@echo "synth_ecp5 -top $(TOP)" >> $(BUILD_DIR)/build.ys
 	@echo "write_verilog $(BUILD_DIR)/$(PROJECT_NAME)_synth.v" >> $(BUILD_DIR)/build.ys
 	@echo "write_json $(BUILD_DIR)/$(PROJECT_NAME).json" >> $(BUILD_DIR)/build.ys
-	@yosys $(YOSYS_ARGS) $(DEFINES) $(BUILD_DIR)/build.ys |& tee $(BUILD_DIR)/yosys.log
+	@yosys $(YOSYS_ARGS) $(addprefix -D,$(VERILOG_DEFINES)) $(BUILD_DIR)/build.ys |& tee $(BUILD_DIR)/yosys.log
 
 $(BUILD_DIR)/nextpnr.config: $(BUILD_DIR)/$(PROJECT_NAME).json $(LPF_FILE)
 	@nextpnr-ecp5 $(NEXTPNR_ARGS) |& tee $(BUILD_DIR)/nextpnr.log
@@ -100,6 +100,9 @@ $(BUILD_DIR)/build.tcl: $(BUILD_DIR) $(NEORV32_SRC) $(NEORV32_WRAPPER) $(NEORV32
 	@for file in $$(readlink -f $(NEORV32_WRAPPER)); do \
 		echo "prj_src add -work $(PROJECT_NAME) $$file" >> $@; done
 	@echo "prj_impl option top $(TOP)" >> $@
+ifneq ($(VERILOG_DEFINES),)
+	@echo "prj_impl option VERILOG_DIRECTIVES {$(VERILOG_DEFINES)}" >> $@
+endif
 # Save project file so that it can be opened using Diamond's GUI
 	@echo "prj_project save" >> $@
 	@echo "prj_run Synthesis -impl $(BOARD)" >> $@
