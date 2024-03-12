@@ -2,8 +2,8 @@
 
 ## What is this
 
-This is a failed attempt at implementing PUF (Physically Unclonable Function)
-for [TwPM project](https://twpm.dasharo.com).
+This is an unfinished attempt at implementing PUF (Physically Unclonable
+Function) for [TwPM project](https://twpm.dasharo.com).
 
 This repository contains code integrating RO (Ring Oscillator) PUF from
 [stnolting/fpga_puf](https://github.com/stnolting/fpga_puf) and custom arbiter
@@ -101,9 +101,87 @@ properly. I tried to constrain other components in order to make some distance
 between PUF and the rest of the system, however I kept running into issues,
 routing/placement failures, crashes, freezes.
 
+Other attempts involved tuning PUF by changing sampling frequency and increasing
+number of NOT gates which affect oscillator frequency. The second approach
+turned to be problematic as yosys seems to ignore `(* dont_touch = "yes" *)` so
+additional gates were remove. The problem can be worked around by using
+device-specific primitives directly. Tuning these parameters had a minimal
+effect on PUF stability.
+
 Eventually, I gave up with, [stnolting](https://github.com/stnolting)'s design
 and tried custom with arbiter PUF implementation.
 
 ## Arbiter PUF status
 
+Arbiter PUF is mostly untested. Nextpnr freezes when routing design with arbiter
+PUF enabled, and if left running for hours it consumes all available memory.
+Diamond can still build the design without noticeable time differences.
 
+Nextpnr freezes after printing device utilization
+
+```
+Info: Device utilisation:
+Info:             TRELLIS_IO:     7/  197     3%
+Info:                   DCCA:     1/   56     1%
+Info:                 DP16KD:    34/   56    60%
+Info:             MULT18X18D:     0/   28     0%
+Info:                 ALU54B:     0/   14     0%
+Info:                EHXPLLL:     0/    2     0%
+Info:                EXTREFB:     0/    1     0%
+Info:                   DCUA:     0/    1     0%
+Info:              PCSCLKDIV:     0/    2     0%
+Info:                IOLOGIC:     0/  128     0%
+Info:               SIOLOGIC:     0/   69     0%
+Info:                    GSR:     0/    1     0%
+Info:                  JTAGG:     0/    1     0%
+Info:                   OSCG:     0/    1     0%
+Info:                  SEDGA:     0/    1     0%
+Info:                    DTR:     0/    1     0%
+Info:                USRMCLK:     0/    1     0%
+Info:                CLKDIVF:     0/    4     0%
+Info:              ECLKSYNCB:     0/   10     0%
+Info:                DLLDELD:     0/    8     0%
+Info:                 DDRDLL:     0/    4     0%
+Info:                DQSBUFM:     0/    8     0%
+Info:        TRELLIS_ECLKBUF:     0/    8     0%
+Info:           ECLKBRIDGECS:     0/    2     0%
+Info:                   DCSC:     0/    2     0%
+Info:             TRELLIS_FF:  1656/24288     6%
+Info:           TRELLIS_COMB:  7963/24288    32%
+Info:           TRELLIS_RAMW:    58/ 3036     1%
+
+Clock '$glbnet$clk_i$TRELLIS_IO_IN' can be driven by:
+ clk_i$tr_io.O delay 0.000ns
+Clock '$glbnet$clk_i$TRELLIS_IO_IN' can be driven by:
+ clk_i$tr_io.O delay 0.000ns
+```
+
+Little tests have been done with Diamond-built design. There is no test
+application and some basic tests were done from Neorv32 BootROM.
+
+## Building
+
+Nix can be used to quickly initialize build environment. The most simple way is
+to type
+
+```shell
+nix develop
+```
+
+while in repo root directory. From Nix shell run `make` to build project.
+
+By default open-source toolchain is used and arbiter PUF is disabled. Toolchain
+can be changed by setting `TOOLCHAIN=diamond` in `make` invocation. To enable
+arbiter PUF set `ARB_PUF=yes`.
+
+> Note: Diamond is not included in default Nix shell: use `nix develop .#with-diamond`.
+
+> See [https://github.com/Dasharo/TwPM_toplevel](https://github.com/Dasharo/TwPM_toplevel/tree/0f68f7d84df2667995edc62e54f542f455671930)
+> README for details on how to configure environment.
+
+> Note: application must be loaded using UART. See [TwPM README](https://github.com/Dasharo/TwPM_toplevel/tree/0f68f7d84df2667995edc62e54f542f455671930?tab=readme-ov-file#uploading-twpm-firmware-trough-uart)
+> for details.
+>
+> If using Diamond, you can instead set `INT_BOOTLOADER_EN` to false in
+> [neorv32_wrapper.vhd](neorv32_wrapper.vhd) so the CPU will boot directly into
+> PUF test application.
