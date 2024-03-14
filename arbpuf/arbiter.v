@@ -3,11 +3,12 @@ module arbiter (
     input  wire        x,
     input  wire        y,
     input  wire [31:0] challenge_i,
-    output reg         resp_o
+    output wire        resp_o
 );
 
     wire [31:0] wa;
     wire [31:0] wb;
+    wire        q_n;
 
     switch a0(x, y, challenge_i[0], wa[0], wb[0]);
     switch a1(wa[0], wb[0], challenge_i[1], wa[1], wb[1]);
@@ -42,7 +43,20 @@ module arbiter (
     switch a30(wa[29], wb[29], challenge_i[30], wa[30], wb[30]);
     switch a31(wa[30], wb[30], challenge_i[31], wa[31], wb[31]);
 
-    always @(posedge wb[31])
-        resp_o <= wa[31];
+    LUT4 #(.init(16'b0000000000000111)) nand0(
+        .Z(resp_o),
+        .A(wa[31]),
+        .B(q_n),
+        .C(1'b0),
+        .D(1'b0)
+    );
+
+    LUT4 #(.init(16'b0000000000000111)) nand1(
+        .Z(q_n),
+        .A(wb[31]),
+        .B(resp_o),
+        .C(1'b0),
+        .D(1'b0)
+    );
 
 endmodule
