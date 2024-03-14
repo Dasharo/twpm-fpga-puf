@@ -157,7 +157,68 @@ Clock '$glbnet$clk_i$TRELLIS_IO_IN' can be driven by:
 ```
 
 Little tests have been done with Diamond-built design. There is no test
-application and some basic tests were done from Neorv32 BootROM.
+application and some basic tests were done from Neorv32 BootROM. Upstream
+BootROM does not have memory r/w commands, but those can be added by
+cherry-picking `8ad745efde1545e5f4241f9173e601e3e021717a` from
+https://github.com/stnolting/neorv32.
+
+After hardware power-on PUF is disabled. To generate response, first, one should
+write challenge and trigger PUF. PUF should be again disabled before writing
+another challenge.
+
+When built with arbiter PUF, registers should be available at `0xf0001800 - 0xf000180c`.
+First register is control register:
+
+```
+CMD:> R
+Address (8 hex): f0001800
+ 0xf0001800 0x00000002
+```
+
+32-bit challenge is written to the register at 0xf0001804:
+
+```
+CMD:> W
+Address (8 hex): f0001804
+Value (8 hex): 1465dda1
+Writing 0x1465dda1 to address 0xf0001804
+```
+
+PUF is triggered by setting bit 0 in 0xf0001800:
+
+```
+CMD:> W
+Address (8 hex): f0001800
+Value (8 hex): 00000001
+Writing 0x00000001 to address 0xf0001800
+```
+
+Response is available in 0xf0001808:
+
+```
+CMD:> R
+Address (8 hex): f0001808
+ 0xf0001808 0xfffffffe
+```
+
+PUF typically responds with values:
+
+- `0xfffffffe`
+- `0xffffffff`
+- `0x00000001`
+- `0x00000000`
+
+which are not valid. The issue is probably caused by some optimizations done
+Diamond. I tried `keep_hierarchy`, `keep` and `dont_touch` attributes, but they
+didn't provide the results I expected. I tried also using ECP5 directives
+directly for switches and SR latch, in fact, I had to build SR latch
+using primitives to prevent Diamond from completely optimizing-away PUF.
+
+Arbiter PUF was meant to be a simpler and temporary replacement for RO PUF. Long
+term plan was to replace arbiter PUF with something more secure - RO or even
+something else. But, since it turned to be problematic - due to Diamond's
+problems and even more so due to nextpnr's problems, we abandon the plan and
+implementation is left in non-working state.
 
 ## Building
 
